@@ -1,0 +1,335 @@
+/*
+ * Copyright 2024 polybit
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+module ttf;
+
+
+const String TTF2MESH_VERSION = "1.6";
+
+
+const CInt MAX_FILE = 32;
+
+
+const CInt DONE           = 0;
+const CInt ERR_NOMEM      = 1;
+const CInt ERR_SIZE       = 2;
+const CInt ERR_OPEN       = 3;
+const CInt ERR_VER        = 4;
+const CInt ERR_FMT        = 5;
+const CInt ERR_NOTAB      = 6;
+const CInt ERR_CSUM       = 7;
+const CInt ERR_UTAB       = 8;
+const CInt ERR_MESHER     = 9;
+const CInt ERR_NO_OUTLINE = 10;
+const CInt ERR_WRITING    = 11;
+
+
+const CInt WEIGHT_THIN       = 100;
+const CInt WEIGHT_EXTRALIGHT = 200;
+const CInt WEIGHT_LIGHT      = 300;
+const CInt WEIGHT_NORMAL     = 400;
+const CInt WEIGHT_MEDIUM     = 500;
+const CInt WEIGHT_DEMIBOLD   = 600;
+const CInt WEIGHT_BOLD       = 700;
+const CInt WEIGHT_EXTRABOLD  = 800;
+const CInt WEIGHT_BLACK      = 900;
+
+
+const CInt QUALITY_LOW    = 10;
+const CInt QUALITY_NORMAL = 20;
+const CInt QUALITY_HIGH   = 50;
+
+
+const CInt FEATURES_DFLT   = 0;
+const CInt FEATURE_IGN_ERR = 1;
+
+
+const CInt GLYPH_USERDATA = 4;
+const CInt FILE_USERDATA  = 4;
+
+
+struct File
+{
+    CInt nchars;
+    CInt nglyphs;
+    uint *chars;
+    uint *char2glyph;
+    Glyph *glyphs;
+    ZString filename;
+    uint glyf_csum;
+    uint[6] ubranges;
+
+    struct head
+    {
+        bitstruct macStyle : char
+        {
+            bool bold;
+            bool italic;
+            bool underline;
+            bool outline;
+            bool shadow;
+            bool condensed;
+            bool extended;
+        }
+    }
+
+    struct os2
+    {
+        float xAvgCharWidth;
+        ushort usWeightClass;
+        ushort usWidthClass;
+        float yStrikeoutSize;
+        float yStrikeoutPos;
+        short sFamilyClass;
+        char[10] panose;
+        bitstruct fsSelection : ushort
+        {
+            ushort italic :    0..0;
+            ushort underscore: 1..1;
+            ushort negative :  2..2;
+            ushort outlined :  3..3;
+            ushort strikeout:  4..4;
+            ushort bold:       5..5;
+            ushort regular:    6..6;
+            ushort utm:        7..7;
+            ushort oblique:    8..8;
+        }
+        float sTypoAscender;
+        float sTypoDescender;
+        float sTypoLineGap;
+        float usWinAscent;
+        float usWinDescent;
+    }
+
+    struct names
+    {
+        ZString copyright;
+        ZString family;
+        ZString subfamily;
+        ZString unique_id;
+        ZString full_name;
+        ZString version;
+        ZString ps_name;
+        ZString trademark;
+        ZString manufacturer;
+        ZString designer;
+        ZString description;
+        ZString url_vendor;
+        ZString url_designer;
+        ZString license_desc;
+        ZString locense_url;
+        ZString sample_text;
+    }
+
+    struct hhea
+    {
+        float ascender;
+        float descender;
+        float lineGap;
+        float advanceWidthMax;
+        float minLSideBearing;
+        float minRSideBearing;
+        float xMaxExtent;
+        float caretSlope;
+    }
+
+    void*[FILE_USERDATA] userdata;
+}
+
+
+struct Glyph
+{
+    CInt index;
+    CInt symbol;
+    CInt npoints;
+    CInt ncontours;
+    bitstruct : uint {
+        uint composite : 0..0;
+    }
+
+    float[2] xbounds;
+    float[2] ybounds;
+    float advance;
+    float lbearing;
+    float rbearing;
+
+    Outline* outline;
+
+    void*[GLYPH_USERDATA] userdata;
+}
+
+
+struct Contour {
+    CInt length;
+    CInt subglyph_id;
+    CInt subglyph_order;
+    Point* pt;
+}
+
+
+struct Outline {
+    CInt total_points;
+    CInt ncontours;
+    Contour[1] cont;
+}
+
+
+struct Point {
+    float x;
+    float y;
+    bitstruct : uint {
+        uint spl : 0..0;
+        uint onc : 1..1;
+        uint shd : 2..2;
+        uint res : 3..31;
+    }
+}
+
+
+struct Mesh {
+    CInt nvert;
+    CInt nfaces;
+    float[2]* vert;
+    CInt[3]* faces; 
+    Outline* outline;
+}
+
+
+struct Mesh3d
+{
+    CInt nvert;
+    CInt nfaces;
+    float[<3>]* vert;
+    CInt[3]* faces;
+    float[<3>]* normals;
+    Outline* outline;
+}
+
+
+struct UnicodeBmpRange
+{
+    ushort first;
+    ushort last;
+    ZString name;
+}
+
+
+/* const UnicodeBmpRange[163] UBRANGES @extern("ubranges"); */
+
+
+/*
+ * @param [in] data
+ */
+fn CInt load_from_mem(char* data, CInt size, File** output, bool headers_only) @extern("ttf_list_match");
+
+
+/*
+ * @param [in] filename
+ */
+fn CInt load_from_file(ZString filename, File** output, bool headers_only) @extern("ttf_load_from_file");
+
+/*
+ * @param [in] directories
+ * @param [in] mask
+ */
+fn File** list_fonts(ZString* directories, CInt dir_count, ZString mask) @extern("ttf_list_fonts");
+
+/*
+ * @param [in] mask
+ */
+fn File** list_system_fonts(ZString mask) @extern("ttf_list_system_fonts");
+
+
+/*
+ * @param [in] requirements
+ */
+fn File* list_match(File** list, File* deflt, ZString requirements, ...) @extern("ttf_list_match");
+
+
+/*
+ * @param [in] requirements
+ */
+fn CInt list_match_id(File** list, ZString requirements, ...) @extern("ttf_list_match_id");
+
+
+/*
+ * @param [in] ttf
+ */
+fn CInt find_glyph(File* ttf, Char32 utf32_char) @extern("ttf_find_glyph");
+
+
+/*
+ * @param [in] glyph
+ */
+fn Outline* splitted_outline(Glyph* glyph) @extern("ttf_splitted_outline");
+
+
+/*
+ * @param [in] glyph
+ */
+fn Outline* linear_outline(Glyph* glyph, char quality) @extern("ttf_linear_outline");
+
+
+/*
+ * @param [in] outline
+ * @param [in] point
+ */
+fn CInt outline_evenodd_base(Outline* outline, float[<2>] point, int contour, float* dist) @extern("ttf_outline_evenodd_base");
+
+
+/*
+ * @param [in] outline
+ * @param [in] point
+ */
+fn bool outline_evenodd(Outline* outline, float[<2>] point, int subglyph) @extern("ttf_outline_evenodd");
+
+
+/*
+ * @param [in] outline
+ */
+fn bool outline_contour_info(Outline* outline, int subglyph, int contour, int test_point, int *nested_to) @extern("ttf_outline_contour_info");
+
+
+fn char* glyph2svgpath(Glyph* glyph, float xscale, float yscale) @extern("ttf_glyph2svgpath");
+
+
+fn CInt glyph2mesh(Glyph* glyph, Mesh** output, char quality, int features) @extern("ttf_glyph2mesh");
+
+
+fn CInt glyph2mesh3d(Glyph* glyph, Mesh3d** output, char quality, int features, float depth) @extern("ttf_glyph2mesh3d");
+
+
+/*
+ * @param [in] file_name
+ */
+fn CInt export_to_obj(File* ttf, ZString file_name, char quality) @extern("(");
+
+
+fn void free_outline(Outline* outline) @extern("ttf_free_outline");
+
+
+fn void free_mesh(Mesh* mesh) @extern("ttf_free_mesh");
+
+
+fn void free_mesh3d(Mesh3d* mesh) @extern("ttf_free_mesh3d");
+
+
+fn void free_list(File** list) @extern("ttf_free_list");
+
+
+fn void free(File* ttf) @extern("ttf_free");
+

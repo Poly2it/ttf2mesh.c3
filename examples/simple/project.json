@@ -1,0 +1,17 @@
+{
+    "langrev": "1",
+    "warnings": [ "no-unused" ],
+    "dependency-search-paths": [ "lib" ],
+    "dependencies": [ "ttf2mesh", "raylib" ],
+    "authors": [ "polybit" ],
+    "version": "0.1.0",
+    "sources": [ "main.c3" ],
+    "output": "build/..",
+    "targets": {
+        "simple": {
+            "type": "executable",
+        },
+    },
+    "cpu": "generic",
+    "opt": "O0",
+}
